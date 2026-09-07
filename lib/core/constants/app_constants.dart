@@ -8,6 +8,8 @@ class AppConstants {
   static const String envSupabaseUrl = 'SUPABASE_URL';
   static const String envSupabaseAnonKey = 'SUPABASE_ANON_KEY';
   static const String envSupabasePublishableKey = 'SUPABASE_PUBLISHABLE_KEY';
+  static const String envGoogleWebClientId = 'GOOGLE_WEB_CLIENT_ID';
+  static const String envGoogleIosClientId = 'GOOGLE_IOS_CLIENT_ID';
 
   // Storage / Preferences Keys
   static const String keyOnboardingCompleted = 'onboarding_completed';

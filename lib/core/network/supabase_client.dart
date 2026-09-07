@@ -13,8 +13,8 @@ final supabaseAuthProvider = Provider<GoTrueClient>((ref) {
   return ref.watch(supabaseClientProvider).auth;
 });
 
-/// Stream provider for auth state changes.
-final authStateChangesProvider = StreamProvider<AuthState>((ref) {
+/// Stream provider for raw Supabase auth state changes.
+final supabaseAuthStateChangesProvider = StreamProvider<AuthState>((ref) {
   final supabase = ref.watch(supabaseClientProvider);
   return supabase.auth.onAuthStateChange;
 });

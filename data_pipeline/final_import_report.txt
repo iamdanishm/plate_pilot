@@ -1,0 +1,61 @@
+
+=============================================================================
+                    PLATEPILOT RECIPE IMPORT REPORT
+=============================================================================
+Total CSV rows:                     6,871
+Valid recipes:                      6,871
+Imported recipes:                   6,871
+Updated recipes:                    0 (Initial fresh import)
+Skipped recipes:                    0
+Failed recipes:                     0
+
+Total ingredient records:           84,394
+Normalized ingredients:             84,394 (100.0%)
+New canonical ingredients created:  5,104 (Total in DB: 5,127)
+New aliases created:                750
+Unresolved ingredients:             0 (0.0%)
+Ambiguous ingredients:              0
+Invalid ingredient records:         0
+
+Duplicate recipes detected:         0 (Idempotency verified)
+Duplicate ingredient mappings:      0
+Zero-quantity ingredients (checks): 0 (Never converted qualitative to 0)
+Qualitative ingredients parsed:     7,587 (e.g. 'to taste', 'as required')
+
+Recipes missing prep/cook times:    0
+Recipes missing servings:           0
+Recipes requiring manual review:    0
+
+Import errors:                      0
+Warnings:                           0
+=============================================================================
+
+Top 15 Most Used Canonical Ingredients:
+  - Salt: 5,385 recipes
+  - Lemon Juice: 3,383 recipes
+  - Red Onion: 2,348 recipes
+  - Turmeric Powder (Haldi): 2,269 recipes
+  - Sunflower Oil: 2,167 recipes
+  - Sugar: 1,969 recipes
+  - Green Chilli: 1,960 recipes
+  - Garlic: 1,941 recipes
+  - Red Chilli Powder: 1,699 recipes
+  - Cumin Seeds (Jeera): 1,572 recipes
+  - Sesame Seeds: 1,462 recipes
+  - Ginger: 1,458 recipes
+  - Fresh Coriander Leaves (Cilantro): 1,296 recipes
+  - Mustard Seeds (Rai): 1,208 recipes
+  - Coriander Powder (Dhania): 1,184 recipes
+
+Top Qualitative Amounts Handled (Set to NULL quantity with amount_description):
+  - "to taste": 4,081 occurrences
+  - "as required": 998 occurrences
+  - "as per taste": 538 occurrences
+  - "for cooking": 329 occurrences
+  - "a pinch": 318 occurrences
+  - "as needed": 261 occurrences
+  - "as per use": 217 occurrences
+  - "for garnish": 158 occurrences
+  - "for deep frying": 110 occurrences
+  - "to garnish": 78 occurrences
+=============================================================================

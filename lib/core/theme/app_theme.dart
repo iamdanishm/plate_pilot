@@ -39,9 +39,10 @@ class AppTheme {
 
   static TextStyle fontStyle({
     required double fontSize,
-    required FontWeight fontWeight,
+    FontWeight fontWeight = FontWeight.normal,
     Color? color,
     double? letterSpacing,
+    double? height,
   }) {
     if (!GoogleFonts.config.allowRuntimeFetching) {
       return TextStyle(
@@ -49,6 +50,7 @@ class AppTheme {
         fontWeight: fontWeight,
         color: color,
         letterSpacing: letterSpacing,
+        height: height,
       );
     }
     return GoogleFonts.plusJakartaSans(
@@ -56,6 +58,7 @@ class AppTheme {
       fontWeight: fontWeight,
       color: color,
       letterSpacing: letterSpacing,
+      height: height,
     );
   }
 

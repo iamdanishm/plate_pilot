@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/glass_container.dart';
+import 'package:plate_pilot/features/onboarding/data/household_repository.dart';
 import '../../data/recipes_repository.dart';
 import '../../domain/recipe_entity.dart';
 
@@ -15,6 +16,9 @@ class RecipesScreen extends ConsumerStatefulWidget {
 
 class _RecipesScreenState extends ConsumerState<RecipesScreen> {
   late final TextEditingController _searchController;
+  late final ScrollController _scrollController;
+  bool _hasSyncedHouseholdDiet = false;
+  bool _isLoadingMore = false;
 
   static const List<String> _cuisines = [
     'All',
@@ -50,10 +54,72 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
     _searchController = TextEditingController(
       text: ref.read(recipeSearchQueryProvider),
     );
+    _scrollController = ScrollController()..addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients || _isLoadingMore) return;
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    final currentScroll = _scrollController.position.pixels;
+    if (currentScroll >= maxScroll - 300) {
+      final currentLimit = ref.read(recipesLimitProvider);
+      final currentLoaded = ref.read(recipesListProvider).asData?.value.length ?? 0;
+      if (currentLoaded >= currentLimit) {
+        _loadMore(currentLimit);
+      }
+    }
+  }
+
+  Future<void> _loadMore(int currentLimit) async {
+    if (_isLoadingMore) return;
+    setState(() => _isLoadingMore = true);
+    ref.read(recipesLimitProvider.notifier).state = currentLimit + 30;
+    try {
+      await ref.read(recipesListProvider.future);
+    } catch (_) {
+      // Ignored in scroll pagination
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingMore = false);
+      }
+    }
+  }
+
+  void _syncHouseholdDietIfNeeded() {
+    if (_hasSyncedHouseholdDiet) return;
+    try {
+      final household = ref.read(currentUserHouseholdProvider).asData?.value;
+      if (household != null && household.dietaryRestrictions.isNotEmpty) {
+        final diet = household.dietaryRestrictions.first.toLowerCase();
+        String? mappedDiet;
+        if (diet.contains('veg') && !diet.contains('non')) {
+          mappedDiet = 'Vegetarian';
+        } else if (diet.contains('vegan')) {
+          mappedDiet = 'Vegan';
+        } else if (diet.contains('non')) {
+          mappedDiet = 'Non Vegeterian';
+        } else if (diet.contains('egg')) {
+          mappedDiet = 'Eggetarian';
+        }
+
+        if (mappedDiet != null && ref.read(recipeSelectedDietProvider) == 'All') {
+          Future.microtask(() {
+            if (mounted) {
+              ref.read(recipeSelectedDietProvider.notifier).state = mappedDiet!;
+            }
+          });
+        }
+        _hasSyncedHouseholdDiet = true;
+      }
+    } catch (_) {
+      // Ignored if household provider is mocked or unavailable in test
+    }
   }
 
   @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -66,6 +132,13 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
     final selectedCuisine = ref.watch(recipeSelectedCuisineProvider);
     final selectedDiet = ref.watch(recipeSelectedDietProvider);
     final selectedTime = ref.watch(recipeSelectedMaxTimeProvider);
+
+    try {
+      ref.listen(currentUserHouseholdProvider, (_, __) => _syncHouseholdDietIfNeeded());
+      _syncHouseholdDietIfNeeded();
+    } catch (_) {
+      // Ignored in test environment
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -94,6 +167,7 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
                         onPressed: () {
                           _searchController.clear();
                           ref.read(recipeSearchQueryProvider.notifier).state = '';
+                          ref.read(recipesLimitProvider.notifier).state = 30;
                         },
                       )
                     : null,
@@ -102,17 +176,54 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
               ),
               onChanged: (val) {
                 ref.read(recipeSearchQueryProvider.notifier).state = val;
+                ref.read(recipesLimitProvider.notifier).state = 30;
               },
             ),
           ),
 
-          // Horizontal Filter Chips
+          // Preference Filter Feedback Strip
+          if (selectedDiet != 'All')
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+              child: Row(
+                children: [
+                  const Icon(Icons.auto_awesome_rounded,
+                      size: 14, color: AppTheme.primaryEmerald),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Filtered by household diet ($selectedDiet)',
+                      style: AppTheme.fontStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.primaryEmeraldDark,
+                      ),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () {
+                      ref.read(recipeSelectedDietProvider.notifier).state = 'All';
+                      ref.read(recipesLimitProvider.notifier).state = 30;
+                    },
+                    child: Text(
+                      'Show All',
+                      style: AppTheme.fontStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          // Horizontal Cuisine Filter Chips
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             child: Row(
               children: [
-                // Cuisine Dropdown / Chips
                 ..._cuisines.map((c) {
                   final isSelected = selectedCuisine == c;
                   return Padding(
@@ -123,6 +234,7 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
                       onSelected: (selected) {
                         ref.read(recipeSelectedCuisineProvider.notifier).state =
                             selected ? c : 'All';
+                        ref.read(recipesLimitProvider.notifier).state = 30;
                       },
                     ),
                   );
@@ -148,6 +260,7 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
                       onSelected: (selected) {
                         ref.read(recipeSelectedDietProvider.notifier).state =
                             selected ? d : 'All';
+                        ref.read(recipesLimitProvider.notifier).state = 30;
                       },
                     ),
                   );
@@ -166,6 +279,7 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
                       onSelected: (selected) {
                         ref.read(recipeSelectedMaxTimeProvider.notifier).state =
                             selected ? t : null;
+                        ref.read(recipesLimitProvider.notifier).state = 30;
                       },
                     ),
                   );
@@ -179,24 +293,45 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
           // Recipe Results List
           Expanded(
             child: recipesAsync.when(
+              skipLoadingOnReload: true,
+              skipLoadingOnRefresh: true,
               data: (recipes) {
                 if (recipes.isEmpty) {
                   return _buildEmptyState(context);
                 }
 
+                final currentLimit = ref.watch(recipesLimitProvider);
+                final canLoadMore = recipes.length >= currentLimit;
+
                 return RefreshIndicator(
                   onRefresh: () async {
+                    ref.read(recipesLimitProvider.notifier).state = 30;
                     ref.invalidate(recipesListProvider);
                   },
                   child: ListView.separated(
+                    controller: _scrollController,
+                    physics: const AlwaysScrollableScrollPhysics(
+                      parent: BouncingScrollPhysics(),
+                    ),
                     padding: const EdgeInsets.symmetric(
                         horizontal: 16, vertical: 12),
-                    itemCount: recipes.length,
+                    itemCount: recipes.length + ((canLoadMore && _isLoadingMore) ? 1 : 0),
                     separatorBuilder: (_, __) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {
+                      if (index == recipes.length) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 20),
+                          child: Center(
+                            child: SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(strokeWidth: 2.5),
+                            ),
+                          ),
+                        );
+                      }
                       final recipe = recipes[index];
-                      return _buildRecipeCard(
-                          context, recipe, isIOS, isDark);
+                      return _buildRecipeCard(context, recipe, isIOS, isDark);
                     },
                   ),
                 );
@@ -248,74 +383,49 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
       children: [
         // Recipe Icon / Thumbnail
         Container(
-          width: 72,
-          height: 72,
+          width: 60,
+          height: 60,
           decoration: BoxDecoration(
             color: AppTheme.primaryEmerald.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(14),
           ),
           child: const Icon(
             Icons.restaurant_rounded,
             color: AppTheme.primaryEmerald,
-            size: 32,
+            size: 28,
           ),
         ),
         const SizedBox(width: 14),
 
-        // Recipe Metadata
+        // Title and Info
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 recipe.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: AppTheme.fontStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '${recipe.cuisine ?? 'Indian'} • ${recipe.course ?? 'Main Course'}',
-                style: AppTheme.fontStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 6),
               Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: AppTheme.secondaryAmber.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.timer_outlined,
-                            size: 12, color: AppTheme.secondaryAmberDark),
-                        const SizedBox(width: 4),
-                        Text(
-                          timeStr,
-                          style: AppTheme.fontStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: AppTheme.secondaryAmberDark,
-                          ),
-                        ),
-                      ],
+                  Icon(Icons.schedule_rounded,
+                      size: 13, color: Colors.grey.shade600),
+                  const SizedBox(width: 3),
+                  Text(
+                    timeStr,
+                    style: AppTheme.fontStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  if (recipe.diet != null)
+                  if (recipe.diet != null) ...[
+                    const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 2),
@@ -334,28 +444,37 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                  ],
                 ],
               ),
             ],
           ),
         ),
 
-        const SizedBox(width: 8),
-        const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.grey),
+        const Icon(Icons.chevron_right_rounded, color: Colors.grey),
       ],
     );
 
     if (isIOS) {
       return GlassContainer(
-        onTap: () => context.push('/recipes/${recipe.id}'),
         padding: const EdgeInsets.all(12),
-        child: content,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: () => context.push('/recipes/${recipe.id}'),
+          child: content,
+        ),
       );
     }
 
     return Card(
-      elevation: 0.5,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      elevation: 0,
+      color: Theme.of(context).cardColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: BorderSide(
+          color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+        ),
+      ),
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
         onTap: () => context.push('/recipes/${recipe.id}'),
@@ -367,56 +486,70 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
     );
   }
 
+  // Scrollable Empty State (prevents bottom overflow when software keyboard is open)
   Widget _buildEmptyState(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: AppTheme.primaryEmerald.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.search_off_rounded,
-                size: 48,
-                color: AppTheme.primaryEmerald,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: constraints.maxHeight,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryEmerald.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.search_off_rounded,
+                      size: 42,
+                      color: AppTheme.primaryEmerald,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    'No recipes found',
+                    style: AppTheme.fontStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Try changing keywords or resetting your active filters.',
+                    textAlign: TextAlign.center,
+                    style: AppTheme.fontStyle(
+                      fontSize: 13,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.refresh_rounded, size: 18),
+                    onPressed: () {
+                      _searchController.clear();
+                      ref.read(recipeSearchQueryProvider.notifier).state = '';
+                      ref.read(recipeSelectedCuisineProvider.notifier).state = 'All';
+                      ref.read(recipeSelectedDietProvider.notifier).state = 'All';
+                      ref.read(recipeSelectedMaxTimeProvider.notifier).state = null;
+                      ref.read(recipesLimitProvider.notifier).state = 30;
+                    },
+                    label: const Text('Reset All Filters'),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 16),
-            Text(
-              'No recipes found',
-              style: AppTheme.fontStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Try changing keywords or clearing selected cuisine/diet filters.',
-              textAlign: TextAlign.center,
-              style: AppTheme.fontStyle(
-                fontSize: 13,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () {
-                _searchController.clear();
-                ref.read(recipeSearchQueryProvider.notifier).state = '';
-                ref.read(recipeSelectedCuisineProvider.notifier).state = 'All';
-                ref.read(recipeSelectedDietProvider.notifier).state = 'All';
-                ref.read(recipeSelectedMaxTimeProvider.notifier).state = null;
-              },
-              child: const Text('Reset All Filters'),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 

@@ -144,5 +144,48 @@ void main() {
 
       expect(find.byIcon(Icons.check_rounded), findsOneWidget);
     });
+
+    testWidgets('tapping segmented tabs toggles between Overview, Ingredients, and Steps views', (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            recipeDetailProvider('r_detail_1').overrideWith((ref) async => testRecipe),
+          ],
+          child: const MaterialApp(
+            home: RecipeDetailScreen(recipeId: 'r_detail_1'),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Initial state is Overview: both Ingredients and Cooking Steps are present
+      expect(find.text('Ingredients (2)'), findsWidgets);
+      expect(find.text('Cooking Steps'), findsOneWidget);
+
+      // Tap on Ingredients tab
+      await tester.tap(find.text('Ingredients (2)').first);
+      await tester.pumpAndSettle();
+
+      // In Ingredients view: Paneer is visible, Cooking Steps header is hidden
+      expect(find.text('Paneer'), findsOneWidget);
+      expect(find.text('Cooking Steps'), findsNothing);
+
+      // Tap on Steps tab
+      await tester.tap(find.text('Steps (2)'));
+      await tester.pumpAndSettle();
+
+      // In Steps view: Cooking Steps is visible, Paneer is hidden
+      expect(find.text('Cooking Steps'), findsOneWidget);
+      expect(find.text('Paneer'), findsNothing);
+
+      // Tap back on Overview tab
+      await tester.tap(find.text('Overview'));
+      await tester.pumpAndSettle();
+
+      // Both are back
+      expect(find.text('Paneer'), findsOneWidget);
+      expect(find.text('Cooking Steps'), findsOneWidget);
+    });
   });
 }

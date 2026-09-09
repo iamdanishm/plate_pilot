@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:plate_pilot/features/onboarding/data/household_repository.dart';
+import 'package:plate_pilot/features/onboarding/domain/household_entity.dart';
 import 'package:plate_pilot/features/recipes/data/recipes_repository.dart';
 import 'package:plate_pilot/features/recipes/domain/recipe_entity.dart';
 import 'package:plate_pilot/features/recipes/presentation/screens/recipes_screen.dart';
@@ -127,6 +129,99 @@ void main() {
 
       expect(find.text('No recipes found'), findsOneWidget);
       expect(find.text('Reset All Filters'), findsOneWidget);
+    });
+
+    testWidgets('empty state does not overflow in vertically constrained viewport (keyboard open)', (tester) async {
+      tester.view.physicalSize = const Size(800, 380);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            recipesListProvider.overrideWith((ref) async => []),
+          ],
+          child: const MaterialApp(
+            home: RecipesScreen(),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.text('No recipes found'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('syncs and pre-selects household dietary preference', (tester) async {
+      final container = ProviderContainer(
+        overrides: [
+          recipesListProvider.overrideWith((ref) async => testRecipes),
+          currentUserHouseholdProvider.overrideWith(
+            (ref) async => HouseholdEntity(
+              id: 'h_test',
+              ownerId: 'u_1',
+              name: 'Test Household',
+              dietaryRestrictions: const ['vegetarian'],
+              createdAt: DateTime.now(),
+              updatedAt: DateTime.now(),
+            ),
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(
+            home: RecipesScreen(),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.text('Filtered by household diet (Vegetarian)'), findsOneWidget);
+      expect(container.read(recipeSelectedDietProvider), 'Vegetarian');
+    });
+
+    testWidgets('infinite scroll triggers pagination when scrolled near bottom', (tester) async {
+      final manyRecipes = List.generate(
+        30,
+        (i) => RecipeEntity(
+          id: 'r_$i',
+          title: 'Recipe Item $i',
+          cuisine: 'Indian',
+          totalTimeMinutes: 30,
+        ),
+      );
+
+      final container = ProviderContainer(
+        overrides: [
+          recipesListProvider.overrideWith((ref) async => manyRecipes),
+        ],
+      );
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(
+            home: RecipesScreen(),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Verify first items are visible
+      expect(find.text('Recipe Item 0'), findsOneWidget);
+
+      // Scroll down
+      await tester.drag(find.byType(ListView), const Offset(0, -2500));
+      await tester.pump();
+
+      // recipesLimitProvider should have been incremented from 30 to 60
+      expect(container.read(recipesLimitProvider), 60);
     });
   });
 }

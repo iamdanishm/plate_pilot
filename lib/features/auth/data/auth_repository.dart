@@ -27,8 +27,17 @@ class AuthRepository implements IAuthRepository {
     final webClientId = dotenv.env[AppConstants.envGoogleWebClientId];
     final iosClientId = dotenv.env[AppConstants.envGoogleIosClientId];
 
+    final String? clientId;
+    if (kIsWeb) {
+      clientId = webClientId;
+    } else if (defaultTargetPlatform == TargetPlatform.iOS) {
+      clientId = iosClientId;
+    } else {
+      clientId = null;
+    }
+
     await GoogleSignIn.instance.initialize(
-      clientId: kIsWeb ? webClientId : iosClientId,
+      clientId: clientId,
       serverClientId: webClientId,
     );
     _googleSignInInitialized = true;

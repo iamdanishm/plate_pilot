@@ -32,7 +32,7 @@ class RecipesRepository implements IRecipesRepository {
     int offset = 0,
   }) async {
     try {
-      var dbQuery = _client.from('recipes').select();
+      var dbQuery = _client.from('recipes').select().eq('language', 'en');
 
       // Full-text title search
       if (query != null && query.trim().isNotEmpty) {
@@ -115,6 +115,7 @@ final recipeSearchQueryProvider = StateProvider<String>((ref) => '');
 final recipeSelectedCuisineProvider = StateProvider<String>((ref) => 'All');
 final recipeSelectedDietProvider = StateProvider<String>((ref) => 'All');
 final recipeSelectedMaxTimeProvider = StateProvider<int?>((ref) => null);
+final recipesLimitProvider = StateProvider<int>((ref) => 30);
 
 // Reactive search results provider
 final recipesListProvider = FutureProvider.autoDispose<List<RecipeEntity>>((ref) async {
@@ -123,13 +124,14 @@ final recipesListProvider = FutureProvider.autoDispose<List<RecipeEntity>>((ref)
   final cuisine = ref.watch(recipeSelectedCuisineProvider);
   final diet = ref.watch(recipeSelectedDietProvider);
   final maxTime = ref.watch(recipeSelectedMaxTimeProvider);
+  final limit = ref.watch(recipesLimitProvider);
 
   return repo.searchRecipes(
     query: query,
     cuisine: cuisine,
     diet: diet,
     maxTotalTimeMinutes: maxTime,
-    limit: 30,
+    limit: limit,
   );
 });
 
@@ -139,3 +141,4 @@ final recipeDetailProvider =
   final repo = ref.watch(recipesRepositoryProvider);
   return repo.getRecipeById(recipeId);
 });
+

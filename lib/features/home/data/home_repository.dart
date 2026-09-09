@@ -73,7 +73,13 @@ class HomeRepository implements IHomeRepository {
     int limit = 3,
   }) async {
     try {
-      var query = _client.from('recipes').select();
+      var query = _client.from('recipes').select().eq('language', 'en');
+
+      // If preferred cuisines specified
+      if (preferredCuisines.isNotEmpty) {
+        final cuisine = preferredCuisines.first;
+        query = query.ilike('cuisine', '%$cuisine%');
+      }
 
       // If dietary restriction like Vegetarian is specified
       if (dietaryRestrictions.isNotEmpty) {
@@ -83,7 +89,7 @@ class HomeRepository implements IHomeRepository {
         }
       }
 
-      final response = await query.limit(limit);
+      final response = await query.order('title', ascending: true).limit(limit);
       return (response as List)
           .map((r) => RecipeEntity.fromJson(r as Map<String, dynamic>))
           .toList();

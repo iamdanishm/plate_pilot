@@ -139,6 +139,38 @@ class HouseholdRepository implements IHouseholdRepository {
     return List<Map<String, dynamic>>.from(response);
   }
 
+  Set<String>? _cachedValidAllergenIds;
+
+  Future<Set<String>> _fetchKnownAllergenIds() async {
+    if (_cachedValidAllergenIds != null && _cachedValidAllergenIds!.isNotEmpty) {
+      return _cachedValidAllergenIds!;
+    }
+    try {
+      final rows = await _client.from('allergens').select('id');
+      _cachedValidAllergenIds = (rows as List)
+          .map((r) => (r['id'] as String).toLowerCase())
+          .toSet();
+      return _cachedValidAllergenIds!;
+    } catch (_) {
+      return const {
+        'peanuts',
+        'peanut',
+        'tree_nuts',
+        'tree_nut',
+        'dairy',
+        'gluten',
+        'soy',
+        'seafood',
+        'fish',
+        'shellfish',
+        'eggs',
+        'egg',
+        'mustard',
+        'sesame',
+      };
+    }
+  }
+
   @override
   Future<HouseholdEntity> createHouseholdWithProfile({
     required String userId,
@@ -153,22 +185,20 @@ class HouseholdRepository implements IHouseholdRepository {
     required double weeklyBudget,
     required String currency,
   }) async {
-    final effectiveUserId = _client.auth.currentUser?.id ?? userId;
+    final effectiveUserId = userId.isNotEmpty
+        ? userId
+        : _client.auth.currentUser?.id ?? '00000000-0000-0000-0000-000000000000';
 
     // 1. Insert household
-    final householdData = await _client
-        .from('households')
-        .insert({
-          'owner_id': effectiveUserId,
-          'name': householdName.trim().isEmpty ? 'My Household' : householdName.trim(),
-        })
-        .select()
-        .single();
+    final householdData = await _client.from('households').insert({
+      'owner_id': effectiveUserId,
+      'name': householdName.trim().isEmpty ? 'My Household' : householdName.trim(),
+    }).select().single();
 
     final householdId = householdData['id'] as String;
 
-    // 2. Insert primary member and additional members
-    final membersToInsert = <Map<String, dynamic>>[];
+    // 2. Insert members
+    final List<Map<String, dynamic>> membersToInsert = [];
     for (int i = 1; i <= adultsCount; i++) {
       membersToInsert.add({
         'household_id': householdId,
@@ -201,11 +231,18 @@ class HouseholdRepository implements IHouseholdRepository {
 
     // 4. Insert allergens
     if (allergens.isNotEmpty) {
+      final knownIds = await _fetchKnownAllergenIds();
       final allergenRows = allergens.map((a) {
+        final rawId = a['allergen_id']?.toString().trim();
+        final custom = a['custom_allergen']?.toString().trim();
+        final bool isKnownTaxonomy = rawId != null && knownIds.contains(rawId.toLowerCase());
+
         return {
           'household_id': householdId,
-          'allergen_id': a['allergen_id'],
-          'custom_allergen': a['custom_allergen'],
+          'allergen_id': isKnownTaxonomy ? rawId : null,
+          'custom_allergen': isKnownTaxonomy
+              ? (custom != null && custom.isNotEmpty ? custom : null)
+              : (custom != null && custom.isNotEmpty ? custom : rawId),
           'is_hard_constraint': a['is_hard_constraint'] ?? true,
         };
       }).toList();
@@ -286,3 +323,9 @@ final currentUserHouseholdProvider = FutureProvider<HouseholdEntity?>((ref) asyn
   final repository = ref.watch(householdRepositoryProvider);
   return repository.getCurrentUserHousehold(user.id);
 });
+
+final masterAllergensProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  final repository = ref.watch(householdRepositoryProvider);
+  return repository.fetchMasterAllergens();
+});
+

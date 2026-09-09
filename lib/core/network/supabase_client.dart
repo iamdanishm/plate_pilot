@@ -5,7 +5,15 @@ import '../constants/app_constants.dart';
 
 /// Provider for the global [SupabaseClient] instance.
 final supabaseClientProvider = Provider<SupabaseClient>((ref) {
-  return Supabase.instance.client;
+  try {
+    return Supabase.instance.client;
+  } catch (_) {
+    return SupabaseClient(
+      'https://mock.supabase.co',
+      'mock-anon-key',
+      authOptions: const AuthClientOptions(autoRefreshToken: false),
+    );
+  }
 });
 
 /// Provider for the [GoTrueClient] / auth instance from Supabase.

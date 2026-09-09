@@ -201,5 +201,28 @@ void main() {
       expect(state.isSubmitting, false);
       expect(state.errorMessage, contains('Database constraint error'));
     });
+
+    test('submitOnboarding preserves standard allergen identifiers correctly', () async {
+      final mockRepo = MockHouseholdRepository();
+      final container = ProviderContainer(
+        overrides: [
+          householdRepositoryProvider.overrideWithValue(mockRepo),
+        ],
+      );
+
+      final controller = container.read(onboardingControllerProvider.notifier);
+      controller.toggleAllergen('egg', isHard: true);
+      controller.toggleAllergen('fish', isHard: true);
+      controller.toggleAllergen('shellfish', isHard: true);
+
+      final result = await controller.submitOnboarding('user_allergy_test');
+      expect(result, isNotNull);
+
+      final submittedAllergens = mockRepo.lastCreatedProfile?['allergens'] as List<Map<String, dynamic>>?;
+      expect(submittedAllergens, isNotNull);
+      expect(submittedAllergens?.length, 3);
+      final allergenIds = submittedAllergens?.map((a) => a['allergen_id']).toList();
+      expect(allergenIds, containsAll(['egg', 'fish', 'shellfish']));
+    });
   });
 }

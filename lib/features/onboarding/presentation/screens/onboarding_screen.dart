@@ -35,6 +35,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     {'id': 'fish', 'name': 'Fish'},
     {'id': 'shellfish', 'name': 'Shellfish'},
     {'id': 'mustard', 'name': 'Mustard'},
+    {'id': 'sesame', 'name': 'Sesame'},
   ];
 
   final List<String> _cuisineOptions = const [

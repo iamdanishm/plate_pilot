@@ -6,6 +6,9 @@ class HouseholdEntity {
   final int childrenCount;
   final List<String> dietaryRestrictions;
   final List<Map<String, dynamic>> allergens;
+  final List<String> preferredCuisines;
+  final int maxWeekdayCookingTimeMinutes;
+  final int maxWeekendCookingTimeMinutes;
   final double weeklyBudget;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -18,6 +21,9 @@ class HouseholdEntity {
     this.childrenCount = 0,
     this.dietaryRestrictions = const [],
     this.allergens = const [],
+    this.preferredCuisines = const [],
+    this.maxWeekdayCookingTimeMinutes = 45,
+    this.maxWeekendCookingTimeMinutes = 60,
     this.weeklyBudget = 3500.0,
     required this.createdAt,
     required this.updatedAt,
@@ -32,6 +38,11 @@ class HouseholdEntity {
       childrenCount: json['children_count'] as int? ?? 0,
       dietaryRestrictions: List<String>.from(json['dietary_restrictions'] ?? []),
       allergens: List<Map<String, dynamic>>.from(json['allergens'] ?? []),
+      preferredCuisines: List<String>.from(json['preferred_cuisines'] ?? []),
+      maxWeekdayCookingTimeMinutes:
+          json['max_weekday_cooking_time_minutes'] as int? ?? 45,
+      maxWeekendCookingTimeMinutes:
+          json['max_weekend_cooking_time_minutes'] as int? ?? 60,
       weeklyBudget: (json['weekly_budget'] as num?)?.toDouble() ?? 3500.0,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
@@ -47,10 +58,47 @@ class HouseholdEntity {
       'children_count': childrenCount,
       'dietary_restrictions': dietaryRestrictions,
       'allergens': allergens,
+      'preferred_cuisines': preferredCuisines,
+      'max_weekday_cooking_time_minutes': maxWeekdayCookingTimeMinutes,
+      'max_weekend_cooking_time_minutes': maxWeekendCookingTimeMinutes,
       'weekly_budget': weeklyBudget,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
+  }
+
+  HouseholdEntity copyWith({
+    String? id,
+    String? ownerId,
+    String? name,
+    int? adultsCount,
+    int? childrenCount,
+    List<String>? dietaryRestrictions,
+    List<Map<String, dynamic>>? allergens,
+    List<String>? preferredCuisines,
+    int? maxWeekdayCookingTimeMinutes,
+    int? maxWeekendCookingTimeMinutes,
+    double? weeklyBudget,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return HouseholdEntity(
+      id: id ?? this.id,
+      ownerId: ownerId ?? this.ownerId,
+      name: name ?? this.name,
+      adultsCount: adultsCount ?? this.adultsCount,
+      childrenCount: childrenCount ?? this.childrenCount,
+      dietaryRestrictions: dietaryRestrictions ?? this.dietaryRestrictions,
+      allergens: allergens ?? this.allergens,
+      preferredCuisines: preferredCuisines ?? this.preferredCuisines,
+      maxWeekdayCookingTimeMinutes:
+          maxWeekdayCookingTimeMinutes ?? this.maxWeekdayCookingTimeMinutes,
+      maxWeekendCookingTimeMinutes:
+          maxWeekendCookingTimeMinutes ?? this.maxWeekendCookingTimeMinutes,
+      weeklyBudget: weeklyBudget ?? this.weeklyBudget,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
   }
 
   @override

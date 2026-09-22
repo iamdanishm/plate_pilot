@@ -1,8 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:plate_pilot/features/auth/data/auth_repository.dart';
+import 'package:plate_pilot/features/auth/domain/user_entity.dart';
 import 'package:plate_pilot/features/onboarding/data/household_repository.dart';
 import 'package:plate_pilot/features/onboarding/domain/household_entity.dart';
 import 'package:plate_pilot/features/onboarding/presentation/controllers/onboarding_controller.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class MockHouseholdRepository implements IHouseholdRepository {
   bool shouldFail = false;
@@ -92,6 +95,24 @@ void main() {
       expect(state.childrenCount, 0);
       expect(state.selectedDiets, contains('vegetarian'));
       expect(state.weeklyBudget, 3000.0);
+    });
+
+    test('setPrimaryDiet replaces previous diet ensuring single selection', () {
+      final mockRepo = MockHouseholdRepository();
+      final container = ProviderContainer(
+        overrides: [
+          householdRepositoryProvider.overrideWithValue(mockRepo),
+        ],
+      );
+
+      final controller = container.read(onboardingControllerProvider.notifier);
+      expect(container.read(onboardingControllerProvider).selectedDiets, ['vegetarian']);
+
+      controller.setPrimaryDiet('non_vegetarian');
+      expect(container.read(onboardingControllerProvider).selectedDiets, ['non_vegetarian']);
+
+      controller.setPrimaryDiet('vegan');
+      expect(container.read(onboardingControllerProvider).selectedDiets, ['vegan']);
     });
 
     test('step progression and updates work correctly', () {
@@ -224,5 +245,146 @@ void main() {
       final allergenIds = submittedAllergens?.map((a) => a['allergen_id']).toList();
       expect(allergenIds, containsAll(['egg', 'fish', 'shellfish']));
     });
+
+    test('currentUserHouseholdProvider resolves immediately via authRepo.currentUser without premature null', () async {
+      final testHousehold = HouseholdEntity(
+        id: 'h_test_immediate',
+        ownerId: 'u_immediate',
+        name: 'Immediate Family',
+        adultsCount: 3,
+        childrenCount: 1,
+        weeklyBudget: 4500,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      final mockAuth = _TestAuthRepo(
+        const UserEntity(id: 'u_immediate', email: 'immediate@test.com'),
+      );
+      final mockHousehold = _TestHouseholdRepo(testHousehold);
+
+      final container = ProviderContainer(
+        overrides: [
+          authRepositoryProvider.overrideWithValue(mockAuth),
+          householdRepositoryProvider.overrideWithValue(mockHousehold),
+        ],
+      );
+
+      final result = await container.read(currentUserHouseholdProvider.future);
+      expect(result, isNotNull);
+      expect(result?.id, 'h_test_immediate');
+      expect(result?.name, 'Immediate Family');
+      expect(result?.weeklyBudget, 4500);
+      expect(result?.adultsCount, 3);
+    });
+
+    test('createHouseholdWithProfile rejects empty or dummy zero UUID when client is unauthenticated', () async {
+      final mockSupabase = SupabaseClient(
+        'https://mock.supabase.co',
+        'mock-anon-key',
+        authOptions: const AuthClientOptions(autoRefreshToken: false),
+      );
+      final repo = HouseholdRepository(mockSupabase);
+
+      expect(
+        () => repo.createHouseholdWithProfile(
+          userId: '00000000-0000-0000-0000-000000000000',
+          householdName: 'Test Household',
+          adultsCount: 2,
+          childrenCount: 0,
+          dietaryRestrictions: ['vegetarian'],
+          allergens: [],
+          preferredCuisines: ['South Indian'],
+          maxWeekdayCookingTime: 30,
+          maxWeekendCookingTime: 60,
+          weeklyBudget: 3500.0,
+          currency: 'INR',
+        ),
+        throwsA(isA<StateError>()),
+      );
+
+      expect(
+        () => repo.createHouseholdWithProfile(
+          userId: '',
+          householdName: 'Test Household',
+          adultsCount: 2,
+          childrenCount: 0,
+          dietaryRestrictions: ['vegetarian'],
+          allergens: [],
+          preferredCuisines: ['South Indian'],
+          maxWeekdayCookingTime: 30,
+          maxWeekendCookingTime: 60,
+          weeklyBudget: 3500.0,
+          currency: 'INR',
+        ),
+        throwsA(isA<StateError>()),
+      );
+    });
   });
+}
+
+class _TestAuthRepo implements IAuthRepository {
+  final UserEntity? _user;
+  _TestAuthRepo(this._user);
+
+  @override
+  UserEntity? get currentUser => _user;
+
+  @override
+  Stream<UserEntity?> get authStateChanges => const Stream.empty();
+
+  @override
+  Future<bool> signInWithGoogle() async => true;
+
+  @override
+  Future<UserEntity> signInWithEmail({required String email, required String password}) async =>
+      _user!;
+
+  @override
+  Future<UserEntity> signUpWithEmail({required String email, required String password}) async =>
+      _user!;
+
+  @override
+  Future<void> signOut() async {}
+}
+
+class _TestHouseholdRepo implements IHouseholdRepository {
+  final HouseholdEntity? _household;
+  _TestHouseholdRepo(this._household);
+
+  @override
+  Future<HouseholdEntity?> getCurrentUserHousehold(String userId) async => _household;
+
+  @override
+  Future<List<Map<String, dynamic>>> fetchMasterAllergens() async => [];
+
+  @override
+  Future<HouseholdEntity> createHouseholdWithProfile({
+    required String userId,
+    required String householdName,
+    required int adultsCount,
+    required int childrenCount,
+    required List<String> dietaryRestrictions,
+    required List<Map<String, dynamic>> allergens,
+    required List<String> preferredCuisines,
+    required int maxWeekdayCookingTime,
+    required int maxWeekendCookingTime,
+    required double weeklyBudget,
+    required String currency,
+  }) async =>
+      _household!;
+
+  @override
+  Future<void> updateHouseholdMembers({
+    required String householdId,
+    required int adultsCount,
+    required int childrenCount,
+    List<String> dietaryRestrictions = const [],
+  }) async {}
+
+  @override
+  Future<void> updateWeeklyBudget({
+    required String householdId,
+    required double weeklyBudget,
+  }) async {}
 }

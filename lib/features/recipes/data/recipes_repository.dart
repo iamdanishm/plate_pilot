@@ -46,7 +46,18 @@ class RecipesRepository implements IRecipesRepository {
 
       // Diet filter
       if (diet != null && diet.isNotEmpty && diet != 'All') {
-        dbQuery = dbQuery.ilike('diet', '%$diet%');
+        if (diet.toLowerCase().contains('non')) {
+          // Ingested dataset splits non-veg between "Non Vegeterian" (427 recipes)
+          // and "High Protein Non Vegetarian" (225 recipes).
+          // '%Non Veg%' matches both variations seamlessly while excluding pure Vegetarian dishes.
+          dbQuery = dbQuery.ilike('diet', '%Non Veg%');
+        } else if (diet.toLowerCase().contains('sattvic') ||
+            diet.toLowerCase().contains('jain') ||
+            diet.toLowerCase().contains('onion')) {
+          dbQuery = dbQuery.ilike('diet', '%No Onion No Garlic%');
+        } else {
+          dbQuery = dbQuery.ilike('diet', '%$diet%');
+        }
       }
 
       // Max total time filter

@@ -81,10 +81,19 @@ class HomeRepository implements IHomeRepository {
         query = query.ilike('cuisine', '%$cuisine%');
       }
 
-      // If dietary restriction like Vegetarian is specified
+      // If dietary restriction is specified
       if (dietaryRestrictions.isNotEmpty) {
         final diet = dietaryRestrictions.first.toLowerCase();
-        if (diet.contains('veg')) {
+        if (diet.contains('non')) {
+          // Matches both "Non Vegeterian" and "High Protein Non Vegetarian"
+          query = query.ilike('diet', '%Non Veget%');
+        } else if (diet.contains('vegan')) {
+          query = query.ilike('diet', '%vegan%');
+        } else if (diet.contains('eggetarian')) {
+          query = query.ilike('diet', '%egg%');
+        } else if (diet.contains('sattvic') || diet.contains('jain')) {
+          query = query.ilike('diet', '%No Onion No Garlic%');
+        } else if (diet.contains('veg')) {
           query = query.ilike('diet', '%vegetarian%');
         }
       }
@@ -124,9 +133,10 @@ final homeActiveMealPlanProvider = FutureProvider.family<Map<String, dynamic>?, 
 
 final homeRecommendedRecipesProvider = FutureProvider.family<List<RecipeEntity>, String>((ref, householdId) async {
   if (householdId == 'default') return [];
-  final household = ref.watch(currentUserHouseholdProvider).asData?.value;
+  final household = await ref.watch(currentUserHouseholdProvider.future);
   final repo = ref.watch(homeRepositoryProvider);
   return repo.getRecommendedRecipes(
+    preferredCuisines: household?.preferredCuisines ?? const [],
     dietaryRestrictions: household?.dietaryRestrictions ?? const [],
   );
 });

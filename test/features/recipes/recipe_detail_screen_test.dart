@@ -38,6 +38,13 @@ void main() {
         quantity: 2,
         unit: 'pcs',
       ),
+      RecipeIngredientEntity(
+        id: 'ing_3',
+        recipeId: 'r_detail_1',
+        rawText: 'Salt to taste',
+        ingredientName: 'Salt',
+        amountDescription: 'to taste',
+      ),
     ],
     instructions: [
       RecipeStepEntity(
@@ -79,6 +86,8 @@ void main() {
       expect(find.text('200 g'), findsOneWidget);
       expect(find.text('Bell Pepper'), findsOneWidget);
       expect(find.text('2 pcs'), findsOneWidget);
+      expect(find.text('Salt'), findsOneWidget);
+      expect(find.text('to taste'), findsOneWidget);
 
       // Verify cooking steps
       expect(find.text('Cut paneer and bell peppers into bite-sized cubes.'), findsOneWidget);
@@ -160,11 +169,11 @@ void main() {
       await tester.pumpAndSettle();
 
       // Initial state is Overview: both Ingredients and Cooking Steps are present
-      expect(find.text('Ingredients (2)'), findsWidgets);
+      expect(find.text('Ingredients (3)'), findsWidgets);
       expect(find.text('Cooking Steps'), findsOneWidget);
 
       // Tap on Ingredients tab
-      await tester.tap(find.text('Ingredients (2)').first);
+      await tester.tap(find.text('Ingredients (3)').first);
       await tester.pumpAndSettle();
 
       // In Ingredients view: Paneer is visible, Cooking Steps header is hidden

@@ -148,12 +148,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   void _showAllergensSheet(HouseholdEntity? household) {
-    final diets = household?.dietaryRestrictions.isNotEmpty == true
-        ? household!.dietaryRestrictions
-        : ['Vegetarian'];
-    final allergens = household?.allergens.isNotEmpty == true
-        ? household!.allergens.map((a) => a['allergen_id'] ?? a['name'] ?? 'Allergen').toList()
-        : ['Peanuts'];
+    final diets = household?.dietaryRestrictions ?? const [];
+    final allergens = household?.allergens
+            .map((a) {
+              final val = a['allergen_id'] ?? a['custom_allergen'] ?? a['name'];
+              return val?.toString().trim();
+            })
+            .where((s) => s != null && s.isNotEmpty)
+            .cast<String>()
+            .toList() ??
+        const [];
 
     showModalBottomSheet(
       context: context,
@@ -197,13 +201,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: diets.map((d) {
-                return Chip(
-                  avatar: const Icon(Icons.check_circle_rounded, size: 16, color: AppTheme.primaryEmerald),
-                  label: Text(d.toString().replaceAll('_', ' ').toUpperCase()),
-                  backgroundColor: AppTheme.primaryEmerald.withValues(alpha: 0.1),
-                );
-              }).toList(),
+              children: diets.isNotEmpty
+                  ? diets.map((d) {
+                      return Chip(
+                        avatar: const Icon(Icons.check_circle_rounded, size: 16, color: AppTheme.primaryEmerald),
+                        label: Text(d.toString().replaceAll('_', ' ').toUpperCase()),
+                        backgroundColor: AppTheme.primaryEmerald.withValues(alpha: 0.1),
+                      );
+                    }).toList()
+                  : [
+                      Chip(
+                        avatar: const Icon(Icons.restaurant_rounded, size: 16, color: AppTheme.primaryEmerald),
+                        label: const Text('STANDARD (NO RESTRICTIONS)'),
+                        backgroundColor: AppTheme.primaryEmerald.withValues(alpha: 0.1),
+                      ),
+                    ],
             ),
             const SizedBox(height: 20),
             Text(
@@ -214,13 +226,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: allergens.map((a) {
-                return Chip(
-                  avatar: const Icon(Icons.shield_rounded, size: 16, color: Color(0xFFDC2626)),
-                  label: Text(a.toString().toUpperCase()),
-                  backgroundColor: const Color(0xFFDC2626).withValues(alpha: 0.1),
-                );
-              }).toList(),
+              children: allergens.isNotEmpty
+                  ? allergens.map((a) {
+                      return Chip(
+                        avatar: const Icon(Icons.shield_rounded, size: 16, color: Color(0xFFDC2626)),
+                        label: Text(a.toUpperCase()),
+                        backgroundColor: const Color(0xFFDC2626).withValues(alpha: 0.1),
+                      );
+                    }).toList()
+                  : [
+                      Chip(
+                        avatar: const Icon(Icons.check_circle_outline_rounded, size: 16, color: AppTheme.primaryEmerald),
+                        label: const Text('NO ACTIVE ALLERGEN EXCLUSIONS'),
+                        backgroundColor: AppTheme.primaryEmerald.withValues(alpha: 0.1),
+                      ),
+                    ],
             ),
             const SizedBox(height: 24),
             ElevatedButton(
@@ -326,6 +346,129 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
+  void _showCuisinesAndCookingTimesSheet(HouseholdEntity? household) {
+    final cuisines = household?.preferredCuisines ?? [];
+    final weekdayTime = household?.maxWeekdayCookingTimeMinutes ?? 45;
+    final weekendTime = household?.maxWeekendCookingTimeMinutes ?? 60;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Cuisines & Cooking Times',
+                  style: AppTheme.fontStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close_rounded),
+                  onPressed: () => Navigator.of(ctx).pop(),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Preferences used for AI meal planning & recipe recommendations.',
+              style: AppTheme.fontStyle(
+                fontSize: 13,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Preferred Cuisines',
+              style: AppTheme.fontStyle(fontSize: 15, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: cuisines.isNotEmpty
+                  ? cuisines.map((c) {
+                      return Chip(
+                        avatar: const Icon(Icons.restaurant_rounded, size: 16, color: AppTheme.primaryEmerald),
+                        label: Text(c),
+                        backgroundColor: AppTheme.primaryEmerald.withValues(alpha: 0.1),
+                      );
+                    }).toList()
+                  : [
+                      Chip(
+                        avatar: const Icon(Icons.public_rounded, size: 16, color: AppTheme.primaryEmerald),
+                        label: const Text('All Cuisines'),
+                        backgroundColor: AppTheme.primaryEmerald.withValues(alpha: 0.1),
+                      ),
+                    ],
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Max Cooking Times',
+              style: AppTheme.fontStyle(fontSize: 15, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Weekday', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                        const SizedBox(height: 4),
+                        Text('$weekdayTime mins', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Weekend', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                        const SizedBox(height: 4),
+                        Text('$weekendTime mins', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              ),
+              child: const Text('Done', style: TextStyle(fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showAboutDialog() {
     showDialog(
       context: context,
@@ -414,6 +557,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               title: 'Weekly Budget Target',
               subtitle: '₹$budgetAmount / week',
               onTap: () => _showBudgetSheet(household),
+              isIOS: isIOS,
+            ),
+            const SizedBox(height: 10),
+            _buildSettingTile(
+              icon: Icons.restaurant_menu_rounded,
+              title: 'Cuisines & Cooking Times',
+              subtitle: '${household?.preferredCuisines.isNotEmpty == true ? household!.preferredCuisines.join(', ') : 'All Cuisines'} • ${household?.maxWeekdayCookingTimeMinutes ?? 45}m weekdays',
+              onTap: () => _showCuisinesAndCookingTimesSheet(household),
               isIOS: isIOS,
             ),
             const SizedBox(height: 24),

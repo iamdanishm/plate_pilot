@@ -93,6 +93,10 @@ class OnboardingController extends StateNotifier<OnboardingFormState> {
     state = state.copyWith(childrenCount: count);
   }
 
+  void setPrimaryDiet(String diet) {
+    state = state.copyWith(selectedDiets: [diet]);
+  }
+
   void toggleDiet(String diet) {
     final diets = List<String>.from(state.selectedDiets);
     if (diets.contains(diet)) {
@@ -180,7 +184,11 @@ class OnboardingController extends StateNotifier<OnboardingFormState> {
         currency: state.currency,
       );
 
-      _ref.invalidate(currentUserHouseholdProvider);
+      try {
+        final _ = _ref.refresh(currentUserHouseholdProvider);
+      } catch (_) {
+        _ref.invalidate(currentUserHouseholdProvider);
+      }
 
       state = state.copyWith(
         isSubmitting: false,

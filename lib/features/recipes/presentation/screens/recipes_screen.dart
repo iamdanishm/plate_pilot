@@ -36,6 +36,7 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
     'All',
     'Vegetarian',
     'Non Vegeterian',
+    'No Onion No Garlic (Sattvic)',
     'Vegan',
     'Eggetarian',
     'High Protein',
@@ -92,14 +93,16 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
       if (household != null && household.dietaryRestrictions.isNotEmpty) {
         final diet = household.dietaryRestrictions.first.toLowerCase();
         String? mappedDiet;
-        if (diet.contains('veg') && !diet.contains('non')) {
-          mappedDiet = 'Vegetarian';
-        } else if (diet.contains('vegan')) {
-          mappedDiet = 'Vegan';
+        if (diet.contains('sattvic') || diet.contains('jain')) {
+          mappedDiet = 'No Onion No Garlic (Sattvic)';
         } else if (diet.contains('non')) {
           mappedDiet = 'Non Vegeterian';
+        } else if (diet.contains('vegan')) {
+          mappedDiet = 'Vegan';
         } else if (diet.contains('egg')) {
           mappedDiet = 'Eggetarian';
+        } else if (diet.contains('veg')) {
+          mappedDiet = 'Vegetarian';
         }
 
         if (mappedDiet != null && ref.read(recipeSelectedDietProvider) == 'All') {

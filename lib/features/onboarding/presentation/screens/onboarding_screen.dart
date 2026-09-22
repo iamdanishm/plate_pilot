@@ -5,7 +5,6 @@ import 'package:plate_pilot/core/theme/app_theme.dart';
 import 'package:plate_pilot/core/theme/glass_container.dart';
 import 'package:plate_pilot/features/auth/data/auth_repository.dart';
 import 'package:plate_pilot/features/auth/presentation/controllers/auth_controller.dart';
-import 'package:plate_pilot/features/onboarding/data/household_repository.dart';
 import 'package:plate_pilot/features/onboarding/presentation/controllers/onboarding_controller.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
@@ -55,14 +54,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   Future<void> _handleFinish() async {
     final user = ref.read(authRepositoryProvider).currentUser ??
         ref.read(authControllerProvider).value;
-    final userId = user?.id ?? '00000000-0000-0000-0000-000000000000';
+    final userId = user?.id ?? '';
 
     final result = await ref
         .read(onboardingControllerProvider.notifier)
         .submitOnboarding(userId);
 
     if (result != null && mounted) {
-      ref.invalidate(currentUserHouseholdProvider);
       if (GoRouter.maybeOf(context) != null) {
         context.go('/');
       }
@@ -320,10 +318,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           runSpacing: 8,
           children: _dietOptions.map((diet) {
             final isSelected = state.selectedDiets.contains(diet);
-            return FilterChip(
+            return ChoiceChip(
               label: Text(diet.replaceAll('_', ' ').toUpperCase()),
               selected: isSelected,
-              onSelected: (_) => controller.toggleDiet(diet),
+              onSelected: (selected) {
+                if (selected) {
+                  controller.setPrimaryDiet(diet);
+                }
+              },
             );
           }).toList(),
         ),

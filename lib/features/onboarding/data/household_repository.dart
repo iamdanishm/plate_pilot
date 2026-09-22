@@ -105,6 +105,19 @@ class HouseholdRepository implements IHouseholdRepository {
 
     final double weeklyBudget =
         (preferences?['weekly_budget'] as num?)?.toDouble() ?? 3500.0;
+    final List<String> preferredCuisines = preferences?['preferred_cuisines'] != null
+        ? List<String>.from(preferences!['preferred_cuisines'])
+        : (response['preferred_cuisines'] != null
+            ? List<String>.from(response['preferred_cuisines'])
+            : const []);
+    final int maxWeekdayCookingTime =
+        (preferences?['max_weekday_cooking_time_minutes'] as int?) ??
+            (response['max_weekday_cooking_time_minutes'] as int?) ??
+            45;
+    final int maxWeekendCookingTime =
+        (preferences?['max_weekend_cooking_time_minutes'] as int?) ??
+            (response['max_weekend_cooking_time_minutes'] as int?) ??
+            60;
     final List<Map<String, dynamic>> parsedAllergens = allergens
         .map((a) => {
               'allergen_id': a['allergen_id'],
@@ -125,6 +138,9 @@ class HouseholdRepository implements IHouseholdRepository {
       allergens: parsedAllergens.isNotEmpty
           ? parsedAllergens
           : List<Map<String, dynamic>>.from(response['allergens'] ?? []),
+      preferredCuisines: preferredCuisines,
+      maxWeekdayCookingTimeMinutes: maxWeekdayCookingTime,
+      maxWeekendCookingTimeMinutes: maxWeekendCookingTime,
       weeklyBudget: preferences != null
           ? weeklyBudget
           : (response['weekly_budget'] as num?)?.toDouble() ?? 3500.0,
@@ -185,9 +201,18 @@ class HouseholdRepository implements IHouseholdRepository {
     required double weeklyBudget,
     required String currency,
   }) async {
-    final effectiveUserId = userId.isNotEmpty
-        ? userId
-        : _client.auth.currentUser?.id ?? '00000000-0000-0000-0000-000000000000';
+    // Determine effective user ID: prioritize authenticated user in Supabase client,
+    // fallback to provided userId if valid and non-empty.
+    final authUserId = _client.auth.currentUser?.id;
+    final effectiveUserId = (authUserId != null && authUserId.isNotEmpty)
+        ? authUserId
+        : (userId.isNotEmpty && userId != '00000000-0000-0000-0000-000000000000')
+            ? userId
+            : null;
+
+    if (effectiveUserId == null) {
+      throw StateError('User must be authenticated to create a household');
+    }
 
     // 1. Insert household
     final householdData = await _client.from('households').insert({
@@ -257,6 +282,9 @@ class HouseholdRepository implements IHouseholdRepository {
       childrenCount: childrenCount,
       dietaryRestrictions: dietaryRestrictions,
       allergens: allergens,
+      preferredCuisines: preferredCuisines,
+      maxWeekdayCookingTimeMinutes: maxWeekdayCookingTime,
+      maxWeekendCookingTimeMinutes: maxWeekendCookingTime,
       weeklyBudget: weeklyBudget,
       createdAt: DateTime.parse(householdData['created_at'] as String),
       updatedAt: DateTime.parse(householdData['updated_at'] as String),
@@ -316,9 +344,17 @@ final householdRepositoryProvider = Provider<IHouseholdRepository>((ref) {
 });
 
 final currentUserHouseholdProvider = FutureProvider<HouseholdEntity?>((ref) async {
-  final authState = ref.watch(authStateChangesProvider);
-  final user = authState.asData?.value;
-  if (user == null) return null;
+  final authRepo = ref.watch(authRepositoryProvider);
+  final streamUser = ref.watch(authStateChangesProvider).asData?.value;
+  final user = streamUser ?? authRepo.currentUser;
+
+  if (user == null) {
+    // If stream is still resolving initial session, await it rather than prematurely returning null
+    final resolvedUser = await ref.watch(authStateChangesProvider.future);
+    if (resolvedUser == null) return null;
+    final repository = ref.watch(householdRepositoryProvider);
+    return repository.getCurrentUserHousehold(resolvedUser.id);
+  }
 
   final repository = ref.watch(householdRepositoryProvider);
   return repository.getCurrentUserHousehold(user.id);

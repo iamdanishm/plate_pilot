@@ -512,8 +512,13 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen> {
       children: recipe.ingredients.map((ing) {
         final isChecked = _checkedIngredients.contains(ing.id);
         final scaledQty = _formatScaledQuantity(ing.quantity);
-        final qtyUnit =
+        final computedQtyUnit =
             [scaledQty, ing.unit ?? ''].where((s) => s.isNotEmpty).join(' ');
+        final qtyUnit = computedQtyUnit.isNotEmpty
+            ? computedQtyUnit
+            : (ing.amountDescription?.trim().isNotEmpty == true
+                ? ing.amountDescription!.trim()
+                : '');
 
         return Padding(
           padding: const EdgeInsets.only(bottom: 8),

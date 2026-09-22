@@ -185,6 +185,38 @@ void main() {
       expect(container.read(recipeSelectedDietProvider), 'Vegetarian');
     });
 
+    testWidgets('syncs and pre-selects sattvic / jain dietary preference to No Onion No Garlic (Sattvic)', (tester) async {
+      final container = ProviderContainer(
+        overrides: [
+          recipesListProvider.overrideWith((ref) async => testRecipes),
+          currentUserHouseholdProvider.overrideWith(
+            (ref) async => HouseholdEntity(
+              id: 'h_sattvic',
+              ownerId: 'u_sattvic',
+              name: 'Sattvic Household',
+              dietaryRestrictions: const ['sattvic'],
+              createdAt: DateTime.now(),
+              updatedAt: DateTime.now(),
+            ),
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(
+            home: RecipesScreen(),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.text('Filtered by household diet (No Onion No Garlic (Sattvic))'), findsOneWidget);
+      expect(container.read(recipeSelectedDietProvider), 'No Onion No Garlic (Sattvic)');
+    });
+
     testWidgets('infinite scroll triggers pagination when scrolled near bottom', (tester) async {
       final manyRecipes = List.generate(
         30,

@@ -43,6 +43,9 @@ class FakeProfileHouseholdRepo implements IHouseholdRepository {
     allergens: [
       {'id': 'peanuts', 'name': 'Peanuts'}
     ],
+    preferredCuisines: ['North Indian', 'Gujarati'],
+    maxWeekdayCookingTimeMinutes: 40,
+    maxWeekendCookingTimeMinutes: 75,
     weeklyBudget: 4500,
     createdAt: DateTime.now(),
     updatedAt: DateTime.now(),
@@ -141,6 +144,107 @@ void main() {
       expect(find.widgetWithText(ElevatedButton, 'Save Changes'), findsOneWidget);
 
       await tester.tap(find.widgetWithText(ElevatedButton, 'Save Changes'));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('tapping Cuisines & Cooking Times opens preference details sheet', (tester) async {
+      final fakeAuth = FakeProfileAuthRepo();
+      final fakeHousehold = FakeProfileHouseholdRepo();
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authRepositoryProvider.overrideWithValue(fakeAuth),
+            householdRepositoryProvider.overrideWithValue(fakeHousehold),
+            currentUserHouseholdProvider.overrideWith((ref) async => fakeHousehold.household),
+          ],
+          child: const MaterialApp(
+            home: ProfileScreen(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Cuisines & Cooking Times'), findsOneWidget);
+      await tester.tap(find.text('Cuisines & Cooking Times'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Preferences used for AI meal planning & recipe recommendations.'), findsOneWidget);
+      expect(find.text('North Indian'), findsOneWidget);
+      expect(find.text('Gujarati'), findsOneWidget);
+      expect(find.text('40 mins'), findsOneWidget);
+      expect(find.text('75 mins'), findsOneWidget);
+
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Done'));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('tapping Allergens & Exclusions renders registered allergens and diets', (tester) async {
+      final fakeAuth = FakeProfileAuthRepo();
+      final fakeHousehold = FakeProfileHouseholdRepo();
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authRepositoryProvider.overrideWithValue(fakeAuth),
+            householdRepositoryProvider.overrideWithValue(fakeHousehold),
+            currentUserHouseholdProvider.overrideWith((ref) async => fakeHousehold.household),
+          ],
+          child: const MaterialApp(
+            home: ProfileScreen(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Allergens & Exclusions'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Allergens & Diets'), findsOneWidget);
+      expect(find.text('VEGETARIAN'), findsOneWidget);
+      expect(find.text('PEANUTS'), findsOneWidget);
+
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Done'));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('tapping Allergens & Exclusions shows empty state when household has no exclusions', (tester) async {
+      final fakeAuth = FakeProfileAuthRepo();
+      final cleanHousehold = HouseholdEntity(
+        id: 'h_clean',
+        ownerId: 'user_p1',
+        name: 'Clean Household',
+        adultsCount: 2,
+        childrenCount: 0,
+        dietaryRestrictions: const [],
+        allergens: const [],
+        weeklyBudget: 3500,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authRepositoryProvider.overrideWithValue(fakeAuth),
+            currentUserHouseholdProvider.overrideWith((ref) async => cleanHousehold),
+          ],
+          child: const MaterialApp(
+            home: ProfileScreen(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Allergens & Exclusions'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('STANDARD (NO RESTRICTIONS)'), findsOneWidget);
+      expect(find.text('NO ACTIVE ALLERGEN EXCLUSIONS'), findsOneWidget);
+      // Ensure fake PEANUTS badge is NOT present
+      expect(find.text('PEANUTS'), findsNothing);
+
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Done'));
       await tester.pumpAndSettle();
     });
 

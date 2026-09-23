@@ -2,15 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/glass_container.dart';
+import '../../../onboarding/data/household_repository.dart';
 import '../../data/recipes_repository.dart';
 import '../../domain/recipe_entity.dart';
 
 class RecipeDetailScreen extends ConsumerStatefulWidget {
   final String recipeId;
+  final int? initialServings;
 
   const RecipeDetailScreen({
     super.key,
     required this.recipeId,
+    this.initialServings,
   });
 
   @override
@@ -25,10 +28,16 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen> {
   final Set<int> _completedSteps = {};
   final Set<String> _checkedIngredients = {};
 
-  void _initServings(int? base) {
+  void _initServings(int? base, int? householdServings) {
     if (!_isServingsInitialized) {
       _baseServings = (base != null && base > 0) ? base : 4;
-      _currentServings = _baseServings;
+      if (widget.initialServings != null && widget.initialServings! > 0) {
+        _currentServings = widget.initialServings!;
+      } else if (householdServings != null && householdServings > 0) {
+        _currentServings = householdServings;
+      } else {
+        _currentServings = _baseServings;
+      }
       _isServingsInitialized = true;
     }
   }
@@ -88,7 +97,11 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen> {
             );
           }
 
-          _initServings(recipe.servings);
+          final household = ref.watch(currentUserHouseholdProvider).asData?.value;
+          final householdServings = household != null
+              ? (household.adultsCount + household.childrenCount)
+              : null;
+          _initServings(recipe.servings, householdServings);
 
           return SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),

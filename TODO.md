@@ -54,24 +54,29 @@ This document tracks the implementation progress, completed milestones, and upco
   - **Recipe Detail View (`/recipes/:id`):** Interactive servings scaler `[-] X Servings [+]` recalculating ingredient quantities in real-time, interactive ingredient checkboxes, and step-by-step cooking steps checklist.
   - **Home Screen Integration:** Wired "Explore All" button and recommended recipe cards directly to the recipe catalog and detail screens.
 
+- [x] **Component 7: Manual Pantry Management Feature Module**
+  - **Data Layer:** `IPantryRepository` and `PantryRepository` connected to Supabase `pantry_items`.
+  - **Canonical Autocomplete:** Query `canonical_ingredients` in real-time as user types in the item addition dialog (auto-fills default unit, storage location, and shelf life).
+  - **Storage Location Filtering:** Dynamic filter chips for `All`, `Pantry`, `Fridge`, `Freezer`, and `Expiring Soon` (expiry $\le 3$ days) with live counts.
+  - **Item Management:** Dismissible swipe-to-delete with undo SnackBar, inline quantity adjuster (`+` / `-`), and manual entry overrides.
+  - **Dashboard Sync:** Automatically invalidates `homePantryCountProvider` on mutations to keep Home Dashboard and bottom navigation badges updated.
+  - **Automated Tests:** 22 comprehensive unit and widget tests covering entity serialization, date logic, repository operations, controller state, and screen UI.
+
 ---
 
 ### Remaining Components (In-Progress / Upcoming)
 
-- [ ] **Component 7: Manual Pantry Management Feature Module**
-  - [ ] **Data Layer:** `IPantryRepository` and `PantryRepository` connected to Supabase `pantry_items`.
-  - [ ] **Canonical Autocomplete:** Query `canonical_ingredients` as user types in the item addition dialog (auto-fills default unit, storage location, and shelf life).
-  - [ ] **Storage Location Filtering:** Filter chips for `All`, `Pantry`, `Fridge`, `Freezer`, and `Expiring Soon` (expiry $\le 3$ days).
-  - [ ] **Item Management:** Swipe-to-delete with undo SnackBar, inline quantity adjuster (`+` / `-`), and manual entry overrides.
-  - [ ] **Dashboard Sync:** Automatically invalidate `homePantryCountProvider` on mutations to keep Home Dashboard and bottom navigation badges updated.
-  - [ ] **Automated Tests:** Unit tests for repository and widget tests for `PantryScreen`.
+- [x] **Component 8: Gemini Live AI Service Abstraction & Prompt Engine**
+  - **Edge Functions:** Deployed active `meal-plan-ai` Supabase Edge Function with server-side Gemini API key and model versioning (`gemini-2.5-flash`).
+  - **AIService Abstraction:** Server-side TypeScript abstraction (`GeminiService`) with 20s timeout and error handling.
+  - **Prompt Management:** Versioned prompt templates in `supabase/functions/_shared/prompts/` (`meal_plan_prompt.ts` with household, pantry, and candidate context).
+  - **Strict Schema Validation:** Structured JSON Schemas (`mealPlanResponseSchema`, `mealSwapResponseSchema`) enforced with Gemini `responseSchema`.
+  - **Untrusted AI Validation Boundary:** Runtime verification that all returned recipe IDs match the actual candidate pool, with deterministic fallback for hallucinated IDs.
+  - **Flutter Service Layer:** `IMealPlanAiService` and `MealPlanAiService` invoking the Edge Function with 5 automated unit tests.
 
-- [ ] **Component 8: Gemini Live AI Service Abstraction & Prompt Engine**
-  - [ ] **Edge Functions:** Build server-side Supabase Edge Functions (`generate-meal-plan`, `swap-meal`, `adapt-recipe`) keeping Gemini API keys strictly server-side.
-  - [ ] **AIService Abstraction:** Clean TypeScript/Dart abstraction (`AIService` $\to$ `GeminiService`).
-  - [ ] **Prompt Management:** Versioned prompts in `supabase/functions/_shared/prompts/`.
-  - [ ] **Strict Schema Validation:** Runtime parsing and validation of structured JSON responses from Gemini (validating referenced recipe IDs, required fields, and budget numbers).
-  - [ ] **Controlled Failure & Fallback:** Graceful fallback handling preserving existing user plans when Gemini fails or returns unparseable outputs.
+---
+
+### Remaining Components (In-Progress / Upcoming)
 
 - [ ] **Component 9: Deterministic Constraint Engine & Meal Planning Engine**
   - [ ] **Hard Constraint Engine:** Absolute enforcement of allergies, dietary exclusions, and strict max cooking times (violating recipes are strictly rejected by code, never overridden by AI).
@@ -143,15 +148,16 @@ This document tracks the implementation progress, completed milestones, and upco
 ---
 
 ## Current Status Summary
-
+ 
 | Area | Status | Notes |
 |---|---|---|
 | **Auth & Onboarding** | ✅ Complete | Google OAuth, RLS-backed profile hydration |
 | **Recipe Database** | ✅ Complete | 6,871 Indian recipes & 84,394 normalized ingredients |
 | **Recipe Explorer** | ✅ Complete | Search, filters, dynamic portion scaling |
 | **Home Dashboard** | ✅ Complete | Adaptive M3 / Glass UI, real-time stats |
-| **Pantry Management** | 🔄 Ready for Dev | Component 7 plan prepared |
-| **AI Meal Planner** | ⏳ Queued | Components 8, 9 & 10 |
+| **Pantry Management** | ✅ Complete | Full CRUD, canonical autocomplete, expiration badges, 22 tests |
+| **AI Live Service** | ✅ Complete | Supabase Edge Function, Gemini 2.5 Flash, structured JSON |
+| **Constraint & Planner** | ⏳ Queued | Components 9 & 10 |
 | **Grocery Aggregation**| ⏳ Queued | Component 11 |
 | **Cooking Mode** | ⏳ Queued | Component 12 |
-| **Test Suite** | ✅ 45 Passing | 0 errors, 0 warnings |
+| **Test Suite** | ✅ 89 Passing | 0 errors, 0 warnings |

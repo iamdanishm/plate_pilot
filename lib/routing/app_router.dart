@@ -146,7 +146,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
           final id = state.pathParameters['id'] ?? '';
-          return RecipeDetailScreen(recipeId: id);
+          final servingsParam = state.uri.queryParameters['servings'];
+          final initialServings = servingsParam != null ? int.tryParse(servingsParam) : null;
+          return RecipeDetailScreen(recipeId: id, initialServings: initialServings);
         },
       ),
 
